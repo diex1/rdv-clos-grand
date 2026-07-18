@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Présentation — Le Clos Grand × LocalBooster</title>
+<meta name="description" content="Préparation RDV commercial — Le Clos Grand (Pradine) × LocalBooster. Deck 6 slides, design Aurora v2.">
+<style>
+  :root{
+    --bg:#0B0D11;
+    --slide-bg-1:#10131A;
+    --slide-bg-2:#0B0D11;
+    --panel:#12151C;
+    --panel-2:#151922;
+    --cyan:#5BD9F0;
+    --green:#34E29A;
+    --text:#EDEFF3;
+    --muted:#9AA6B2;
+    --muted-2:#C0C6CF;
+    --border:rgba(91,217,240,.32);
+    --border-soft:rgba(255,255,255,.07);
+    --shadow:0 24px 70px rgba(0,0,0,.55);
+    --SW:1280px;
+    --SH:720px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Stage / scaling ---------- */
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  #deck{
+    width:var(--SW);height:var(--SH);position:relative;
+    transform-origin:center center;
+  }
+  .slide{
+    position:absolute;inset:0;
+    background:radial-gradient(120% 120% at 15% 0%,var(--slide-bg-1) 0%,var(--slide-bg-2) 60%);
+    border:1px solid var(--border-soft);
+    border-radius:16px;overflow:hidden;
+    padding:64px 72px 58px;
+    display:flex;flex-direction:column;
+    opacity:0;visibility:hidden;
+    transition:opacity .38s ease;
+    box-shadow:var(--shadow);
+  }
+  .slide.active{opacity:1;visibility:visible;}
+  /* gradient top rail */
+  .slide::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:5px;
+    background:linear-gradient(90deg,var(--cyan),var(--green));
+  }
+  /* per-slide brand + page marker */
+  .slide .brand{position:absolute;left:72px;bottom:26px;color:var(--cyan);font-size:14px;font-weight:600;letter-spacing:.02em;}
+  .slide .pageno{position:absolute;right:72px;bottom:26px;color:var(--muted);font-size:13px;}
+  /* slides that already carry their own branded footer hide the generic mark */
+  #s1 .brand,#s6 .brand{display:none;}
+
+  /* ---------- Typography helpers ---------- */
+  h1,h2,h3,p{margin:0}
+  .eyebrow{color:var(--cyan);font-weight:700;letter-spacing:.18em;font-size:24px;text-transform:uppercase;}
+  .tagline{color:var(--muted);font-size:16px;margin-top:8px;}
+  .rule{height:2px;width:220px;background:linear-gradient(90deg,var(--cyan),rgba(91,217,240,0));border:0;margin:34px 0;}
+  .title{color:var(--cyan);font-size:40px;font-weight:800;letter-spacing:-.01em;line-height:1.1;}
+  .title.green{color:var(--green);}
+  .lead{font-size:56px;font-weight:800;color:var(--text);letter-spacing:-.02em;line-height:1.05;}
+  .sub-lead{font-size:34px;font-weight:800;color:var(--green);margin-top:14px;}
+  .muted{color:var(--muted);}
+
+  /* ---------- Slide 1 : cover ---------- */
+  .cover-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;}
+  .cover-foot .left{color:var(--muted-2);font-size:16px;}
+  .cover-foot .right{text-align:right;color:var(--muted-2);font-size:16px;}
+  .cover-foot .right .site{color:var(--cyan);font-weight:700;margin-top:6px;}
+
+  /* ---------- Slide 2 : context blocks ---------- */
+  .blocks{display:flex;flex-direction:column;gap:26px;margin-top:36px;max-width:960px;}
+  .block h3{color:var(--green);font-size:22px;font-weight:700;margin-bottom:8px;}
+  .block p{color:var(--muted-2);font-size:18px;line-height:1.5;}
+
+  /* ---------- Slide 3 : KPI grid ---------- */
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:38px;max-width:1000px;}
+  .kpi{
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--border);border-radius:14px;padding:24px 26px;
+  }
+  .kpi .k-label{color:var(--cyan);font-size:17px;font-weight:700;}
+  .kpi .k-value{color:var(--green);font-size:46px;font-weight:800;letter-spacing:-.01em;margin:6px 0 8px;}
+  .kpi .k-note{color:var(--muted);font-size:14px;}
+
+  /* ---------- Slide 4 : pillars ---------- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:38px;}
+  .pillar{
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--border);border-radius:14px;padding:24px 24px 26px;
+  }
+  .pillar h3{color:var(--cyan);font-size:20px;font-weight:700;margin-bottom:12px;}
+  .pillar p{color:var(--muted-2);font-size:16px;line-height:1.5;}
+  .closing{margin-top:36px;color:var(--green);font-style:italic;font-size:19px;font-weight:600;}
+
+  /* ---------- Slide 5 : ROI hero ---------- */
+  .roi-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;}
+  .roi-card{
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:2px solid var(--green);border-radius:18px;
+    padding:38px 60px;text-align:center;min-width:620px;
+    box-shadow:0 0 60px rgba(52,226,154,.10);
+  }
+  .roi-card .r-label{color:var(--cyan);font-size:20px;font-weight:700;}
+  .roi-card .r-big{color:var(--green);font-size:82px;font-weight:800;letter-spacing:-.02em;margin:14px 0 20px;}
+  .roi-card .r-line{color:var(--muted-2);font-size:19px;line-height:1.7;}
+  .roi-card .r-line b{color:var(--text);}
+  .roi-source{color:var(--muted);font-size:14px;text-align:center;}
+
+  /* ---------- Slide 6 : CTA ---------- */
+  .cta-rule{height:2px;width:420px;background:linear-gradient(90deg,var(--cyan),var(--green));border:0;margin:28px auto 46px;}
+  .cta-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;text-align:center;max-width:1040px;margin:0 auto;}
+  .cta-col h3{color:var(--cyan);font-size:22px;font-weight:700;margin-bottom:10px;}
+  .cta-col p{color:var(--muted-2);font-size:17px;}
+  #s6 .title{text-align:center;}
+  .cta-foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;}
+  .cta-foot .c-contact{color:var(--muted-2);font-size:16px;}
+  .cta-foot .c-site{color:var(--cyan);font-weight:700;font-size:16px;}
+
+  /* ---------- Chrome : controls, progress, counter ---------- */
+  #progress{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--green));width:0;z-index:40;transition:width .3s ease;}
+  .nav-btn{
+    position:fixed;top:50%;transform:translateY(-50%);z-index:30;
+    width:52px;height:52px;border-radius:50%;
+    background:rgba(18,21,28,.7);border:1px solid var(--border);
+    color:var(--cyan);font-size:22px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(6px);transition:background .2s,opacity .2s;
+  }
+  .nav-btn:hover{background:rgba(91,217,240,.16);}
+  .nav-btn:disabled{opacity:.25;cursor:default;}
+  #prev{left:20px} #next{right:20px}
+  #dots{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;display:flex;gap:11px;}
+  #dots button{width:11px;height:11px;border-radius:50%;border:1px solid var(--border);background:transparent;padding:0;cursor:pointer;transition:background .2s,transform .2s;}
+  #dots button.on{background:linear-gradient(90deg,var(--cyan),var(--green));border-color:transparent;transform:scale(1.25);}
+  #counter{position:fixed;right:22px;bottom:20px;z-index:30;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;}
+  #hint{position:fixed;left:22px;bottom:20px;z-index:30;color:var(--muted);font-size:12px;opacity:.75;}
+  .icon-row{position:fixed;top:16px;right:18px;z-index:30;display:flex;gap:10px;}
+  .icon-row button{
+    background:rgba(18,21,28,.7);border:1px solid var(--border);color:var(--cyan);
+    border-radius:9px;padding:7px 11px;font-size:12px;cursor:pointer;backdrop-filter:blur(6px);
+  }
+  .icon-row button:hover{background:rgba(91,217,240,.16);}
+
+  /* ---------- Print / PDF export : one slide per page ---------- */
+  @media print{
+    @page{size:1280px 720px;margin:0;}
+    body{overflow:visible;background:#0B0D11;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    #stage{position:static;display:block;}
+    #deck{width:1280px;height:auto;transform:none!important;}
+    .slide{
+      position:relative;inset:auto;opacity:1!important;visibility:visible!important;
+      width:1280px;height:720px;border-radius:0;border:0;box-shadow:none;
+      page-break-after:always;break-after:page;
+    }
+    #progress,.nav-btn,#dots,#counter,#hint,.icon-row{display:none!important;}
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<div id="stage">
+  <div id="deck">
+
+    <!-- SLIDE 1 — Cover -->
+    <section class="slide" id="s1">
+      <div class="eyebrow">LocalBooster</div>
+      <div class="tagline">Visibilité locale &nbsp;|&nbsp; Automatisation &nbsp;|&nbsp; Résultats mesurables</div>
+      <hr class="rule">
+      <h1 class="lead">Préparation RDV</h1>
+      <h2 class="sub-lead">Le Clos Grand — Pradine</h2>
+      <div class="cover-foot">
+        <div class="left">RDV prévu : <strong>Demain 14h</strong></div>
+        <div class="right">
+          <div>Préparé par : Rodolphe, fondateur LocalBooster</div>
+          <div class="site">localbooster.site</div>
+        </div>
+      </div>
+      <span class="brand">localbooster.site</span><span class="pageno">1 / 6</span>
+    </section>
+
+    <!-- SLIDE 2 — Sector context -->
+    <section class="slide" id="s2">
+      <h2 class="title">Votre secteur : la restauration traditionnelle en France</h2>
+      <div class="blocks">
+        <div class="block">
+          <h3>Un marché en reprise active</h3>
+          <p>Le chiffre d'affaires de la restauration commerciale est revenu au-dessus de son niveau d'avant-crise. En 2023, les établissements ont vu leur fréquentation augmenter grâce au tourisme et aux habitudes prises pendant le confinement.</p>
+        </div>
+        <div class="block">
+          <h3>Une digitalisation encore partielle</h3>
+          <p>Plus de 60&nbsp;% des restaurants traditionnels n'ont pas de site optimisé ni de réservation en ligne. C'est votre avantage si vous bougez maintenant, avant la concurrence.</p>
+        </div>
+        <div class="block">
+          <h3>Vos clients cherchent 3 choses</h3>
+          <p>Une adresse facile à trouver, une carte claire, un moyen simple de réserver. Le site Internet devient la première impression, avant même l'arrivée en salle.</p>
+        </div>
+      </div>
+      <span class="brand">localbooster.site</span><span class="pageno">2 / 6</span>
+    </section>
+
+    <!-- SLIDE 3 — Metrics -->
+    <section class="slide" id="s3">
+      <h2 class="title">Vos enjeux chiffrés aujourd'hui</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="k-label">CA estimé annuel</div>
+          <div class="k-value">340&nbsp;200 €</div>
+          <div class="k-note">Ticket moyen 27 € · Source INSEE 2023</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">EBITDA cible</div>
+          <div class="k-value">34&nbsp;020 €</div>
+          <div class="k-note">~10&nbsp;% du CA · Banque de France ratios TPE</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">Couverts / an</div>
+          <div class="k-value">12&nbsp;600</div>
+          <div class="k-note">~45 / jour · 280 jours d'ouverture</div>
+        </div>
+        <div class="kpi">
+          <div class="k-label">Taux d'occupation cible</div>
+          <div class="k-value">60&nbsp;%</div>
+          <div class="k-note">Source : FNP 2023</div>
+        </div>
+      </div>
+      <span class="brand">localbooster.site</span><span class="pageno">3 / 6</span>
+    </section>
+
+    <!-- SLIDE 4 — Solution -->
+    <section class="slide" id="s4">
+      <h2 class="title">La solution LocalBooster en 3 piliers</h2>
+      <div class="pillars">
+        <div class="pillar">
+          <h3>Site Internet ultra-rapide</h3>
+          <p>PageSpeed 95+, design Aurora v2. Conforme RGPD et optimisé pour le mobile. Mise en ligne en 7 jours.</p>
+        </div>
+        <div class="pillar">
+          <h3>Réservation en ligne 24/7</h3>
+          <p>Module intégré à votre site. Le client voit vos dispos en temps réel et réserve sans vous appeler. SMS de confirmation automatique.</p>
+        </div>
+        <div class="pillar">
+          <h3>Visibilité locale Google</h3>
+          <p>Fiche Google My Business optimisée, SEO local, pages pour chaque plat-phare. Être trouvé en cherchant «&nbsp;restaurant traditionnel Pradine&nbsp;».</p>
+        </div>
+      </div>
+      <div class="closing">Tout est mesuré : on suit ensemble les KPIs chaque semaine.</div>
+      <span class="brand">localbooster.site</span><span class="pageno">4 / 6</span>
+    </section>
+
+    <!-- SLIDE 5 — ROI -->
+    <section class="slide" id="s5">
+      <h2 class="title">Votre retour sur investissement sur 12 mois</h2>
+      <div class="roi-wrap">
+        <div class="roi-card">
+          <div class="r-label">ROI sur 12 mois</div>
+          <div class="r-big">+13&nbsp;817&nbsp;%</div>
+          <div class="r-line">CA additionnel : <b>137&nbsp;781 € / an</b></div>
+          <div class="r-line">Coût LocalBooster : <b>990 € HT / an</b></div>
+          <div class="r-line">Payback : <b>4 mois</b></div>
+        </div>
+        <div class="roi-source">Source : benchmarks restauration traditionnelle France 2023 (INSEE, FNP)</div>
+      </div>
+      <span class="brand">localbooster.site</span><span class="pageno">5 / 6</span>
+    </section>
+
+    <!-- SLIDE 6 — CTA -->
+    <section class="slide" id="s6">
+      <h2 class="title green">Prêt à essayer 30 jours, sans engagement ?</h2>
+      <hr class="cta-rule">
+      <div class="cta-cols">
+        <div class="cta-col">
+          <h3>Audit gratuit</h3>
+          <p>30 min, sans engagement</p>
+        </div>
+        <div class="cta-col">
+          <h3>Site en ligne en 7 jours</h3>
+          <p>Performance + design Aurora v2</p>
+        </div>
+        <div class="cta-col">
+          <h3>Automatisations sur mesure</h3>
+          <p>Réservations, fidélité, e-mailing</p>
+        </div>
+      </div>
+      <div class="cta-foot">
+        <div class="c-contact">Contact : Rodolphe — fondateur LocalBooster</div>
+        <div class="c-site">localbooster.site</div>
+      </div>
+      <span class="brand">localbooster.site</span><span class="pageno">6 / 6</span>
+    </section>
+
+  </div>
+</div>
+
+<!-- chrome -->
+<button class="nav-btn" id="prev" aria-label="Slide précédente">‹</button>
+<button class="nav-btn" id="next" aria-label="Slide suivante">›</button>
+<div class="icon-row">
+  <button id="fs-btn" title="Plein écran (F)">⛶ Plein écran</button>
+  <button id="print-btn" title="Imprimer / Export PDF (P)">⎙ PDF</button>
+</div>
+<div id="dots"></div>
+<div id="counter"></div>
+<div id="hint">← → Naviguer · F Plein écran · P Export PDF</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var deck = document.getElementById('deck');
+  var SW = 1280, SH = 720, GUTTER = 48;
+  var idx = 0;
+
+  // ---- responsive scaling (contain) ----
+  function fit(){
+    var w = window.innerWidth - GUTTER*2;
+    var h = window.innerHeight - GUTTER*2;
+    var scale = Math.min(w/SW, h/SH);
+    deck.style.transform = 'scale(' + scale + ')';
+  }
+
+  // ---- dots ----
+  var dotsWrap = document.getElementById('dots');
+  slides.forEach(function(_, i){
+    var b = document.createElement('button');
+    b.setAttribute('aria-label','Aller à la slide ' + (i+1));
+    b.addEventListener('click', function(){ go(i); });
+    dotsWrap.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(dotsWrap.children);
+
+  var counter = document.getElementById('counter');
+  var progress = document.getElementById('progress');
+  var prevBtn = document.getElementById('prev');
+  var nextBtn = document.getElementById('next');
+
+  function render(){
+    slides.forEach(function(s,i){ s.classList.toggle('active', i===idx); });
+    dots.forEach(function(d,i){ d.classList.toggle('on', i===idx); });
+    counter.textContent = (idx+1) + ' / ' + total;
+    progress.style.width = (total<2 ? 100 : (idx/(total-1))*100) + '%';
+    prevBtn.disabled = idx===0;
+    nextBtn.disabled = idx===total-1;
+    if (('#'+(idx+1)) !== location.hash) {
+      history.replaceState(null,'', '#'+(idx+1));
+    }
+  }
+  function go(i){ idx = Math.max(0, Math.min(total-1, i)); render(); }
+  function next(){ go(idx+1); }
+  function prev(){ go(idx-1); }
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  // ---- keyboard ----
+  document.addEventListener('keydown', function(e){
+    switch(e.key){
+      case 'ArrowRight': case 'PageDown': case ' ': next(); e.preventDefault(); break;
+      case 'ArrowLeft': case 'PageUp': prev(); e.preventDefault(); break;
+      case 'Home': go(0); break;
+      case 'End': go(total-1); break;
+      case 'f': case 'F': toggleFs(); break;
+      case 'p': case 'P': window.print(); break;
+      default:
+        if (e.key >= '1' && e.key <= '9'){ go(parseInt(e.key,10)-1); }
+    }
+  });
+
+  // ---- click-to-advance on slide area (ignore chrome) ----
+  document.getElementById('stage').addEventListener('click', function(e){
+    if (e.target.closest('button')) return;
+    var x = e.clientX / window.innerWidth;
+    if (x < 0.35) prev(); else next();
+  });
+
+  // ---- fullscreen ----
+  function toggleFs(){
+    if (!document.fullscreenElement){
+      (document.documentElement.requestFullscreen||function(){})();
+    } else {
+      (document.exitFullscreen||function(){})();
+    }
+  }
+  document.getElementById('fs-btn').addEventListener('click', toggleFs);
+  document.getElementById('print-btn').addEventListener('click', function(){ window.print(); });
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', function(){
+    var n = parseInt(location.hash.replace('#',''),10);
+    if (!isNaN(n) && n-1 !== idx) go(n-1);
+  });
+
+  // ---- init from hash ----
+  var start = parseInt(location.hash.replace('#',''),10);
+  if (!isNaN(start)) idx = Math.max(0, Math.min(total-1, start-1));
+  fit();
+  render();
+})();
+</script>
+</body>
+</html>
