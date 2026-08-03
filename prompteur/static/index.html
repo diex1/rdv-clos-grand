@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Prompteur LocalBooster</title>
+<style>
+  :root{
+    --cyan:#5BD9F0; --green:#34E29A; --bg:#0B0D11; --panel:rgba(18,21,28,.85);
+    --fs:34px; /* taille du texte du prompteur, pilotée par le slider */
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:#EDEFF3; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  button{font:inherit; cursor:pointer;}
+
+  /* caméra plein écran, aperçu miroir (selfie) — la vidéo enregistrée n'est pas inversée */
+  #cam{
+    position:fixed; inset:0; width:100%; height:100%; object-fit:cover;
+    transform:scaleX(-1); background:#000;
+  }
+
+  /* bandeau prompteur par-dessus la caméra */
+  #prompt{
+    position:fixed; left:0; right:0; top:0; height:62%;
+    overflow:hidden; z-index:5;
+    background:linear-gradient(180deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.62) 75%, rgba(0,0,0,0) 100%);
+    -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 82%,transparent 100%);
+            mask-image:linear-gradient(180deg,#000 0%,#000 82%,transparent 100%);
+  }
+  #ptext{
+    padding:calc(env(safe-area-inset-top, 0px) + 64px) 22px 40vh;
+    font-size:var(--fs); line-height:1.45; font-weight:700; text-align:center;
+    white-space:pre-wrap; will-change:transform;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+  }
+
+  .bar{
+    position:fixed; left:0; right:0; z-index:10; display:flex;
+    align-items:center; gap:10px; padding:10px 12px;
+  }
+  #topbar{top:0; padding-top:calc(env(safe-area-inset-top, 0px) + 8px); justify-content:space-between;}
+  #bottombar{
+    bottom:0; padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 14px);
+    justify-content:center; gap:26px;
+  }
+
+  .chip{
+    background:var(--panel); border:1px solid rgba(91,217,240,.35); color:var(--cyan);
+    border-radius:10px; padding:8px 12px; font-size:14px; backdrop-filter:blur(6px);
+  }
+  .sliders{display:flex; gap:12px; align-items:center; background:var(--panel);
+    border:1px solid rgba(91,217,240,.35); border-radius:10px; padding:6px 12px; backdrop-filter:blur(6px);}
+  .sliders label{font-size:11px; color:#9AA6B2; display:flex; flex-direction:column; align-items:center; gap:2px;}
+  .sliders input[type=range]{width:88px; accent-color:var(--cyan);}
+
+  #recbtn{
+    width:76px; height:76px; border-radius:50%; border:4px solid #fff;
+    background:#E0433C; transition:border-radius .2s, background .2s;
+  }
+  #recbtn.on{border-radius:16px; background:#B22B25;}
+  #scrollbtn,#resetbtn{
+    width:56px; height:56px; border-radius:50%; font-size:22px;
+    background:var(--panel); border:1px solid rgba(91,217,240,.35); color:var(--cyan);
+    backdrop-filter:blur(6px);
+  }
+  #timer{
+    position:fixed; top:calc(env(safe-area-inset-top, 0px) + 12px); left:50%; transform:translateX(-50%);
+    z-index:11; font-variant-numeric:tabular-nums; font-size:15px; color:#fff;
+    background:rgba(224,67,60,.9); border-radius:8px; padding:3px 10px; display:none;
+  }
+  #timer.on{display:block;}
+
+  /* panneaux (éditeur / envoi) */
+  .panel{
+    position:fixed; inset:0; z-index:20; background:rgba(11,13,17,.96);
+    display:flex; flex-direction:column; gap:14px;
+    padding:calc(env(safe-area-inset-top, 0px) + 20px) 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
+  }
+  .panel h2{margin:0; color:var(--cyan); font-size:19px;}
+  .panel[hidden]{display:none;}
+  textarea{
+    flex:1; resize:none; background:#12151C; color:#EDEFF3; border:1px solid rgba(91,217,240,.35);
+    border-radius:12px; padding:14px; font-size:17px; line-height:1.5; font-family:inherit;
+  }
+  input[type=password]{
+    background:#12151C; color:#EDEFF3; border:1px solid rgba(91,217,240,.35);
+    border-radius:10px; padding:12px; font-size:16px;
+  }
+  .row{display:flex; gap:10px;}
+  .btn{
+    flex:1; border:0; border-radius:12px; padding:14px; font-size:16px; font-weight:700;
+  }
+  .btn.primary{background:linear-gradient(90deg,var(--cyan),var(--green)); color:#08222b;}
+  .btn.ghost{background:#1a1f29; color:#C0C6CF; border:1px solid rgba(255,255,255,.12);}
+  #status{font-size:14px; color:#9AA6B2; min-height:20px;}
+  progress{width:100%; height:10px; accent-color:var(--green);}
+  #sendinfo{font-size:16px; line-height:1.6;}
+  #sendinfo b{color:var(--green);}
+</style>
+</head>
+<body>
+
+<video id="cam" autoplay playsinline muted></video>
+<div id="prompt"><div id="ptext"></div></div>
+<div id="timer">00:00</div>
+
+<div class="bar" id="topbar">
+  <button class="chip" id="editbtn">✎ Texte</button>
+  <div class="sliders">
+    <label>Vitesse<input type="range" id="speed" min="10" max="140" step="5"></label>
+    <label>Taille<input type="range" id="fsize" min="20" max="60" step="2"></label>
+  </div>
+</div>
+
+<div class="bar" id="bottombar">
+  <button id="resetbtn" title="Revenir au début">⇤</button>
+  <button id="recbtn" title="Enregistrer"></button>
+  <button id="scrollbtn" title="Défilement">▶</button>
+</div>
+
+<!-- Éditeur du script (stocké sur le serveur) -->
+<div class="panel" id="editor" hidden>
+  <h2>Texte du prompteur</h2>
+  <div id="tokrow" class="row" hidden>
+    <input type="password" id="token" placeholder="Jeton d'accès" style="flex:1">
+  </div>
+  <textarea id="scriptbox" placeholder="Collez ou écrivez ici le texte à lire…"></textarea>
+  <div id="status"></div>
+  <div class="row">
+    <button class="btn ghost" id="cancelbtn">Fermer</button>
+    <button class="btn primary" id="savebtn">Enregistrer sur le serveur</button>
+  </div>
+</div>
+
+<!-- Envoi après enregistrement -->
+<div class="panel" id="sendbox" hidden>
+  <h2>Vidéo enregistrée</h2>
+  <div id="sendinfo"></div>
+  <progress id="prog" value="0" max="100" hidden></progress>
+  <div id="sendstatus"></div>
+  <div style="flex:1"></div>
+  <div class="row">
+    <button class="btn ghost" id="discardbtn">Jeter</button>
+    <button class="btn primary" id="sendbtn">Envoyer au serveur</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var api = function(path){
+    return path + (path.indexOf('?') < 0 ? '?' : '&') + 'k=' + encodeURIComponent(state.token);
+  };
+  var state = {
+    token: localStorage.getItem('lb_token') || '',
+    speed: parseInt(localStorage.getItem('lb_speed') || '45', 10),
+    fs:    parseInt(localStorage.getItem('lb_fs') || '34', 10),
+    offset: 0, scrolling: false, lastT: 0,
+    stream: null, rec: null, chunks: [], blob: null, mime: '',
+    recStart: 0, timerId: 0, wakeLock: null
+  };
+  // ?k=... dans l'URL enregistre le jeton une bonne fois pour toutes
+  var urlK = new URLSearchParams(location.search).get('k');
+  if (urlK){ state.token = urlK; localStorage.setItem('lb_token', urlK); }
+
+  /* ---------- prompteur ---------- */
+  var ptext = $('ptext');
+  function applyFs(){ document.documentElement.style.setProperty('--fs', state.fs + 'px'); }
+  $('speed').value = state.speed;
+  $('fsize').value = state.fs;
+  applyFs();
+  $('speed').addEventListener('input', function(){ state.speed = +this.value; localStorage.setItem('lb_speed', this.value); });
+  $('fsize').addEventListener('input', function(){ state.fs = +this.value; localStorage.setItem('lb_fs', this.value); applyFs(); });
+
+  function tick(t){
+    if (state.scrolling){
+      if (state.lastT) state.offset += state.speed * (t - state.lastT) / 1000;
+      state.lastT = t;
+      var max = Math.max(0, ptext.scrollHeight - 40);
+      if (state.offset > max){ state.offset = max; setScrolling(false); }
+      ptext.style.transform = 'translateY(' + (-state.offset) + 'px)';
+    } else {
+      state.lastT = 0;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  function setScrolling(on){
+    state.scrolling = on;
+    $('scrollbtn').textContent = on ? '⏸' : '▶';
+  }
+  $('scrollbtn').addEventListener('click', function(){ setScrolling(!state.scrolling); });
+  $('resetbtn').addEventListener('click', function(){
+    state.offset = 0; ptext.style.transform = 'translateY(0)';
+  });
+  $('prompt').addEventListener('click', function(){ setScrolling(!state.scrolling); });
+
+  /* ---------- script : chargement / sauvegarde serveur ---------- */
+  function loadScript(){
+    fetch(api('/api/script')).then(function(r){
+      if (r.status === 401){ openEditor(true); throw new Error('401'); }
+      return r.text();
+    }).then(function(txt){
+      if (!txt) txt = localStorage.getItem('lb_script') || '';
+      ptext.textContent = txt;
+      $('scriptbox').value = txt;
+      if (!txt) openEditor(false);
+    }).catch(function(){});
+  }
+  function openEditor(needToken){
+    $('tokrow').hidden = !needToken;
+    $('token').value = state.token;
+    $('status').textContent = needToken ? 'Jeton requis ou invalide — saisissez-le puis réessayez.' : '';
+    $('editor').hidden = false;
+  }
+  $('editbtn').addEventListener('click', function(){ openEditor(false); });
+  $('cancelbtn').addEventListener('click', function(){ $('editor').hidden = true; });
+  $('savebtn').addEventListener('click', function(){
+    var tok = $('token').value.trim();
+    if (tok){ state.token = tok; localStorage.setItem('lb_token', tok); }
+    var txt = $('scriptbox').value;
+    localStorage.setItem('lb_script', txt);
+    $('status').textContent = 'Enregistrement…';
+    fetch(api('/api/script'), {method:'PUT', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: txt})
+      .then(function(r){
+        if (r.status === 401){ openEditor(true); return; }
+        if (!r.ok) throw new Error(r.status);
+        ptext.textContent = txt;
+        state.offset = 0; ptext.style.transform = 'translateY(0)';
+        $('status').textContent = '';
+        $('editor').hidden = true;
+      })
+      .catch(function(){
+        ptext.textContent = txt; // au pire : texte gardé en local
+        $('status').textContent = 'Serveur injoignable — texte gardé sur le téléphone.';
+      });
+  });
+
+  /* ---------- caméra ---------- */
+  function startCam(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      alert('Caméra indisponible. La page doit être ouverte en HTTPS.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode:'user', width:{ideal:1280}, height:{ideal:720} },
+      audio: true
+    }).then(function(s){
+      state.stream = s;
+      $('cam').srcObject = s;
+    }).catch(function(e){
+      alert('Accès caméra/micro refusé : ' + e.name);
+    });
+  }
+
+  /* ---------- enregistrement ---------- */
+  function pickMime(){
+    var cands = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+    for (var i = 0; i < cands.length; i++){
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(cands[i])) return cands[i];
+    }
+    return '';
+  }
+  function fmt(t){
+    var s = Math.floor(t/1000), m = Math.floor(s/60); s = s % 60;
+    return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  }
+  function startRec(){
+    if (!state.stream){ alert('Caméra non prête.'); return; }
+    if (!window.MediaRecorder){ alert("Enregistrement non supporté par ce navigateur (mettez iOS/Android à jour)."); return; }
+    state.mime = pickMime();
+    try {
+      state.rec = state.mime ? new MediaRecorder(state.stream, {mimeType: state.mime})
+                             : new MediaRecorder(state.stream);
+    } catch(e){ alert('Impossible de démarrer : ' + e.message); return; }
+    state.chunks = [];
+    state.rec.ondataavailable = function(ev){ if (ev.data && ev.data.size) state.chunks.push(ev.data); };
+    state.rec.onstop = onRecStop;
+    state.rec.start(1000);
+    state.recStart = Date.now();
+    $('recbtn').classList.add('on');
+    $('timer').classList.add('on');
+    state.timerId = setInterval(function(){ $('timer').textContent = fmt(Date.now() - state.recStart); }, 500);
+    state.offset = 0; ptext.style.transform = 'translateY(0)';
+    setScrolling(true);
+    if (navigator.wakeLock && navigator.wakeLock.request){
+      navigator.wakeLock.request('screen').then(function(w){ state.wakeLock = w; }).catch(function(){});
+    }
+  }
+  function stopRec(){
+    if (state.rec && state.rec.state !== 'inactive') state.rec.stop();
+    setScrolling(false);
+    clearInterval(state.timerId);
+    $('recbtn').classList.remove('on');
+    $('timer').classList.remove('on');
+    if (state.wakeLock){ state.wakeLock.release().catch(function(){}); state.wakeLock = null; }
+  }
+  function onRecStop(){
+    var type = (state.mime || 'video/webm').split(';')[0];
+    state.blob = new Blob(state.chunks, {type: type});
+    state.chunks = [];
+    var mo = Math.round(state.blob.size / 1048576 * 10) / 10;
+    $('sendinfo').innerHTML = 'Durée : <b>' + fmt(Date.now() - state.recStart) + '</b><br>' +
+                              'Taille : <b>' + mo + ' Mo</b><br>Format : <b>' + type + '</b>';
+    $('sendstatus').textContent = '';
+    $('prog').hidden = true; $('prog').value = 0;
+    $('sendbtn').disabled = false;
+    $('sendbox').hidden = false;
+  }
+  $('recbtn').addEventListener('click', function(){
+    (state.rec && state.rec.state === 'recording') ? stopRec() : startRec();
+  });
+
+  /* ---------- envoi ---------- */
+  $('discardbtn').addEventListener('click', function(){
+    state.blob = null; $('sendbox').hidden = true;
+  });
+  $('sendbtn').addEventListener('click', function(){
+    if (!state.blob) return;
+    var ext = state.blob.type.indexOf('mp4') >= 0 ? '.mp4' : '.webm';
+    var fd = new FormData();
+    fd.append('video', state.blob, 'prompteur' + ext);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', api('/api/upload'));
+    $('prog').hidden = false;
+    $('sendbtn').disabled = true;
+    $('sendstatus').textContent = 'Envoi en cours…';
+    xhr.upload.onprogress = function(ev){
+      if (ev.lengthComputable) $('prog').value = Math.round(ev.loaded / ev.total * 100);
+    };
+    xhr.onload = function(){
+      if (xhr.status === 200){
+        var r = {};
+        try { r = JSON.parse(xhr.responseText); } catch(e){}
+        $('sendstatus').innerHTML = '✅ Déposé sur le serveur : <b>' + (r.fichier || '') + '</b>' +
+          (r.traitement_lance ? '<br>⚙️ Traitement lancé automatiquement.' : '');
+        state.blob = null;
+        setTimeout(function(){ $('sendbox').hidden = true; }, 2600);
+      } else if (xhr.status === 401){
+        $('sendstatus').textContent = 'Jeton invalide — corrigez-le via « ✎ Texte ».';
+        $('sendbtn').disabled = false;
+      } else {
+        $('sendstatus').textContent = 'Échec (' + xhr.status + ') — réessayez.';
+        $('sendbtn').disabled = false;
+      }
+    };
+    xhr.onerror = function(){
+      $('sendstatus').textContent = 'Réseau indisponible — la vidéo est toujours là, réessayez.';
+      $('sendbtn').disabled = false;
+    };
+    xhr.send(fd);
+  });
+
+  loadScript();
+  startCam();
+})();
+</script>
+</body>
+</html>
